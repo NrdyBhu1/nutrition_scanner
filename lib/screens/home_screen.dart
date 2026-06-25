@@ -61,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
 
       if (product == null) {
+        print("Product not found: $raw");
         _showSnack('Product not found: $raw');
         await _controller.start();
         setState(() => _isProcessing = false);
@@ -217,7 +218,6 @@ class _ScanOverlay extends StatelessWidget {
                   width: cutW,
                   height: cutH,
                   decoration: BoxDecoration(
-                    color: Colors.red,
                     borderRadius: BorderRadius.circular(corner),
                   ),
                 ),

@@ -8,11 +8,8 @@ class DatabaseHelper {
   DatabaseHelper._internal();
   static final DatabaseHelper instance = DatabaseHelper._internal();
   factory DatabaseHelper() => instance;
-
   Database? _db;
 
-  /// Opens DB at ApplicationDocumentsDirectory/nutrition.db.
-  /// Never creates or migrates — file must already exist.
   Future<Database> get database async {
     if (_db != null && _db!.isOpen) return _db!;
     _db = await _openDB();
@@ -22,11 +19,35 @@ class DatabaseHelper {
   Future<Database> _openDB() async {
     final dir = await getApplicationDocumentsDirectory();
     final path = p.join(dir.path, 'nutrition.db');
-
     return await openDatabase(
       path,
-      readOnly: true, // existing data only — no accidental writes
-      // No onCreate / onUpgrade — app does NOT own this DB's schema
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE "products" (
+            "product_id"     INTEGER NOT NULL UNIQUE,
+            "Calories"       DOUBLE,
+            "Total Fat"      DOUBLE,
+            "Saturated Fat"  DOUBLE,
+            "Trans Fat"      DOUBLE,
+            "Cholesterol"    DOUBLE,
+            "Sodium"         DOUBLE,
+            "Potassium"      DOUBLE,
+            "Total Carbs"    DOUBLE,
+            "Protein"        DOUBLE,
+            "Sugars"         DOUBLE,
+            "Fiber"          DOUBLE
+          )
+        ''');
+
+        await db.execute('''
+          INSERT INTO products
+            (product_id, Calories, "Total Fat", "Saturated Fat", "Trans Fat",
+             Cholesterol, Sodium, Potassium, "Total Carbs", Protein, Sugars, Fiber)
+          VALUES
+            (8901491361026, 558, 34.6, 16, 0.1, 0, 0.892, 0, 55.2, 6.4, 1.0, 0);
+        ''');
+      },
     );
   }
 
@@ -40,7 +61,6 @@ class DatabaseHelper {
       whereArgs: [barcode],
       limit: 1,
     );
-
     if (rows.isEmpty) return null;
     return Product.fromMap(rows.first);
   }
