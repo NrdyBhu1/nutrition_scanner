@@ -26,17 +26,17 @@ class DatabaseHelper {
         await db.execute('''
           CREATE TABLE "products" (
             "product_id"     INTEGER NOT NULL UNIQUE,
-            "Calories"       DOUBLE,
-            "Total Fat"      DOUBLE,
-            "Saturated Fat"  DOUBLE,
-            "Trans Fat"      DOUBLE,
-            "Cholesterol"    DOUBLE,
-            "Sodium"         DOUBLE,
-            "Potassium"      DOUBLE,
-            "Total Carbs"    DOUBLE,
-            "Protein"        DOUBLE,
-            "Sugars"         DOUBLE,
-            "Fiber"          DOUBLE
+            "Calories"       INTEGER,
+            "Total Fat"      INTEGER,
+            "Saturated Fat"  INTEGER,
+            "Trans Fat"      INTEGER,
+            "Cholesterol"    INTEGER,
+            "Sodium"         INTEGER,
+            "Potassium"      INTEGER,
+            "Total Carbs"    INTEGER,
+            "Protein"        INTEGER,
+            "Sugars"         INTEGER,
+            "Fiber"          INTEGER
           )
         ''');
 
@@ -45,13 +45,14 @@ class DatabaseHelper {
             (product_id, Calories, "Total Fat", "Saturated Fat", "Trans Fat",
              Cholesterol, Sodium, Potassium, "Total Carbs", Protein, Sugars, Fiber)
           VALUES
-            (8901491361026, 558, 34.6, 16, 0.1, 0, 0.892, 0, 55.2, 6.4, 1.0, 0);
+            (8901491361026, 558, 34, 16, 0, 0, 0, 0, 55, 6, 1, 0);
         ''');
       },
     );
   }
 
   /// Query product by barcode (product_id).
+  /// (8901491361026, 558, 34.6, 16, 0.1, 0, 0.892, 0, 55.2, 6.4, 1.0, 0);
   /// Returns [Product] if found, null otherwise.
   Future<Product?> queryProduct(int barcode) async {
     final db = await database;
