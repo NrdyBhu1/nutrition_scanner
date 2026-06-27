@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
 import 'screens/history_screen.dart';
-import 'screens/sync_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/tracker_screen.dart';
+import 'screens/sync_screen.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http;
+import 'constants.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Force portrait — scanner UX breaks in landscape
@@ -25,11 +30,16 @@ void main() {
     ),
   );
 
-  runApp(const NutritionScannerApp());
+  final dir = await getApplicationDocumentsDirectory();
+  final dbFile = File(p.join(dir.path, 'nutrition.db'));
+  final needsSync = !await dbFile.exists();
+
+  runApp(NutritionScannerApp(needsSync: needsSync));
 }
 
 class NutritionScannerApp extends StatelessWidget {
-  const NutritionScannerApp({super.key});
+  final bool needsSync;
+  const NutritionScannerApp({super.key, this.needsSync = false});
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +76,7 @@ class NutritionScannerApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: Color(0xFFF5F7FA),
       ),
-      home: const RootShell(),
+      home: needsSync ? const _AutoSyncWrapper() : const RootShell(),
     );
   }
 }
@@ -82,17 +92,22 @@ class _RootShellState extends State<RootShell> {
   int _tab = 0;
 
   static const List<Widget> _screens = [
-    HomeScreen(),
-    HistoryScreen(),
-    TrackerScreen(),
-    ProfileScreen(),
-    SyncScreen(),
+    const HistoryScreen(),
+    const TrackerScreen(),
+    const ProfileScreen(),
+    const SyncScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _tab, children: _screens),
+      body: IndexedStack(
+        index: _tab,
+        children: [
+          HomeScreen(isActive: _tab == 0), // passes active flag
+          ..._screens,
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
@@ -135,6 +150,134 @@ class _RootShellState extends State<RootShell> {
             label: 'Sync',
           ),
         ],
+      ),
+    );
+  }
+}
+// ─── Auto Sync Wrapper ────────────────────────────────────────────────────────
+
+class _AutoSyncWrapper extends StatefulWidget {
+  const _AutoSyncWrapper();
+
+  @override
+  State<_AutoSyncWrapper> createState() => _AutoSyncWrapperState();
+}
+
+class _AutoSyncWrapperState extends State<_AutoSyncWrapper> {
+  String _message = 'Checking database…';
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoSync();
+  }
+
+  Future<void> _autoSync() async {
+    try {
+      setState(() => _message = 'Downloading database…');
+
+      final result = await http
+          .get(
+            Uri.parse(kDbUrl),
+            headers: {'User-Agent': 'NutritionScannerApp/1.0'},
+          )
+          .timeout(const Duration(seconds: 60));
+
+      if (result.statusCode != 200) {
+        throw Exception('Server returned ${result.statusCode}');
+      }
+
+      setState(() => _message = 'Installing database…');
+
+      final dir = await getApplicationDocumentsDirectory();
+      final dbPath = p.join(dir.path, 'nutrition.db');
+      await File(dbPath).writeAsBytes(result.bodyBytes);
+
+      setState(() => _message = 'Done!');
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const RootShell()));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _failed = true;
+          _message = 'Failed: $e';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A2E),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.cloud_sync_rounded,
+                  size: 64,
+                  color: Color(0xFF00BCD4),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Setting up database',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 32),
+                if (!_failed)
+                  const CircularProgressIndicator(color: Color(0xFF00BCD4))
+                else ...[
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _failed = false;
+                        _message = 'Retrying…';
+                      });
+                      _autoSync();
+                    },
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00BCD4),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const RootShell()),
+                    ),
+                    child: const Text(
+                      'Skip for now',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

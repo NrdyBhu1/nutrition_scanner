@@ -4,11 +4,13 @@ import '../db_helper.dart';
 import 'nutrition_screen.dart';
 import '../utils/allergen_checker.dart';
 import '../utils/rdi_constants.dart';
-import '../models/user_profile.dart';
 import '../models/daily_intake.dart';
+import '../models/product.dart';
+import '../services/openfoodfacts_service.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isActive;
+  const HomeScreen({super.key, this.isActive = true});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -26,12 +28,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Don't start if launched inactive (shouldn't happen but safe)
+    if (!widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _controller.stop();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen old) {
+    super.didUpdateWidget(old);
+    if (old.isActive == widget.isActive) return;
+
+    if (widget.isActive) {
+      // Came back to scan tab — restart only if not processing
+      if (!_isProcessing) {
+        _controller.start();
+      }
+    } else {
+      // Left scan tab — stop camera immediately
+      _controller.stop();
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _controller.start();
+      // Only restart if this tab is active and not mid-processing
+      if (widget.isActive && !_isProcessing) {
+        _controller.start();
+      }
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _controller.stop();
@@ -61,14 +88,75 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await _controller.stop();
 
     try {
-      final product = await DatabaseHelper.instance.queryProduct(id);
+      Product? product = await DatabaseHelper.instance.queryProduct(id);
+
+      // Not in local DB — try OpenFoodFacts API
+      if (product == null) {
+        if (mounted) {
+          setState(() {
+            // reuse _isProcessing to keep spinner, update hint text
+          });
+        }
+        _showSnack('Not in local DB, checking OpenFoodFacts…');
+
+        final offResult = await OpenFoodFactsService.fetch(id);
+
+        if (!offResult.found || offResult.data == null) {
+          if (mounted) {
+            _showSnack('Product not found: $raw');
+            await _controller.start();
+            setState(() => _isProcessing = false);
+          }
+          return;
+        }
+
+        // Check if API returned any nutrition values at all
+        final data = offResult.data!;
+        print(offResult);
+        final hasNutrition = [
+          data['Calories'],
+          data['Total Fat'],
+          data['Total Carbs'],
+          data['Protein'],
+          data['Sugars'],
+          data['Sodium'],
+        ].any((v) => v != null);
+
+        if (!hasNutrition) {
+          if (mounted) {
+            _showSnack('Product found but has no nutrition data');
+            await _controller.start();
+            setState(() => _isProcessing = false);
+          }
+          return;
+        }
+
+        // Insert into local DB safely
+        try {
+          await DatabaseHelper.instance.insertProduct(offResult.data!);
+          // Re-query to get proper Product object
+          product = await DatabaseHelper.instance.queryProduct(id);
+        } catch (_) {
+          // ignored
+        }
+
+        // Final fallback — build directly from API map
+        if (product == null && offResult.data != null) {
+          try {
+            product = Product.fromMap(offResult.data!);
+          } catch (_) {
+            product = null;
+          }
+        }
+      }
+
       if (!mounted) return;
 
       if (product == null) {
         _showSnack('Product not found: $raw');
         await _controller.start();
         setState(() => _isProcessing = false);
-      } else {
+      } else if (product != null) {
         await DatabaseHelper.instance.insertScanEntry(
           product.productId,
           product.productName,
@@ -78,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final today = await DatabaseHelper.instance.fetchDailyIntake(
           DailyIntake.todayKey,
         );
-        final allergenResult = AllergenChecker.check(product, profile);
+        final allergenResult = AllergenChecker.check(product!, profile);
 
         // Show allergen warning before navigating
         if (allergenResult.hasMatch && mounted) {
@@ -99,11 +187,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => NutritionScreen(product: product)),
+          MaterialPageRoute(builder: (_) => NutritionScreen(product: product!)),
         );
         // Back from NutritionScreen — re-enable scanner
-        if (mounted) {
+        if (mounted && widget.isActive) {
           await _controller.start();
+          setState(() => _isProcessing = false);
+        } else if (mounted) {
+          // Switched tab while NutritionScreen was open — just clear flag
           setState(() => _isProcessing = false);
         }
       }

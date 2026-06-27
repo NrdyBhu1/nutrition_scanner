@@ -3,8 +3,6 @@ import 'package:fl_chart/fl_chart.dart';
 import '../models/product.dart';
 import '../utils/health_score.dart';
 import '../db_helper.dart';
-import '../models/user_profile.dart';
-import '../models/daily_intake.dart';
 import '../utils/allergen_checker.dart';
 
 // Distinct colors for pie segments
@@ -35,6 +33,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final hasData = HealthScore.hasAnyData(product);
     final score = HealthScore.compute(product);
     final chartData = product.chartNutrients; // Map<String, int>
     final entries = chartData.entries.toList();
@@ -69,58 +68,156 @@ class _NutritionScreenState extends State<NutritionScreen> {
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              product.productName,
-              style: const TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A2E),
-                letterSpacing: 0.3,
+      body: !hasData
+          ? _NoDataView(product: product)
+          : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    product.productName,
+                    style: const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A2E),
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // ── Health Score Card ─────────────────────────────────────────
+                  _HealthScoreCard(score: score),
+                  const SizedBox(height: 20),
+
+                  // ── Calories Badge ────────────────────────────────────────────
+                  _CaloriesBadge(calories: product.calories?.toInt()),
+                  const SizedBox(height: 20),
+
+                  // ── Pie Chart ─────────────────────────────────────────────────
+                  if (entries.isNotEmpty) ...[
+                    _SectionHeader(title: 'Nutrient Breakdown'),
+                    const SizedBox(height: 12),
+                    _PieCard(
+                      entries: entries,
+                      total: total,
+                      touchedIndex: _touchedIndex,
+                      onTouch: (i) => setState(() => _touchedIndex = i),
+                    ),
+                    const SizedBox(height: 8),
+                    _Legend(entries: entries),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // ── Allergen Banner ───────────────────────────────────────────
+                  _AllergenBanner(product: product),
+                  const SizedBox(height: 12),
+
+                  // ── Nutrition Table ───────────────────────────────────────────
+                  _SectionHeader(title: 'Full Nutrition Facts'),
+                  const SizedBox(height: 12),
+                  _NutritionTable(rows: product.tableRows),
+                  const SizedBox(height: 32),
+                  // ── Add to Daily Tracker ──────────────────────────────────────
+                  //
+                  if (hasData) _AddToDailyButton(product: product),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            // ── Health Score Card ─────────────────────────────────────────
-            _HealthScoreCard(score: score),
-            const SizedBox(height: 20),
+    );
+  }
+}
+// ─── No Data View ─────────────────────────────────────────────────────────────
 
-            // ── Calories Badge ────────────────────────────────────────────
-            _CaloriesBadge(calories: product.calories!.toInt()),
-            const SizedBox(height: 20),
+class _NoDataView extends StatelessWidget {
+  final Product product;
+  const _NoDataView({required this.product});
 
-            // ── Pie Chart ─────────────────────────────────────────────────
-            if (entries.isNotEmpty) ...[
-              _SectionHeader(title: 'Nutrient Breakdown'),
-              const SizedBox(height: 12),
-              _PieCard(
-                entries: entries,
-                total: total,
-                touchedIndex: _touchedIndex,
-                onTouch: (i) => setState(() => _touchedIndex = i),
-              ),
-              const SizedBox(height: 8),
-              _Legend(entries: entries),
-              const SizedBox(height: 20),
-            ],
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Still show allergen banner — may have allergen data even
+          // without nutrition values
+          _AllergenBanner(product: product),
+          const SizedBox(height: 16),
 
-            // ── Allergen Banner ───────────────────────────────────────────
-            _AllergenBanner(product: product),
-            const SizedBox(height: 12),
-
-            // ── Nutrition Table ───────────────────────────────────────────
-            _SectionHeader(title: 'Full Nutrition Facts'),
-            const SizedBox(height: 12),
-            _NutritionTable(rows: product.tableRows),
-            const SizedBox(height: 32),
-            // ── Add to Daily Tracker ──────────────────────────────────────
-            _AddToDailyButton(product: product),
-            const SizedBox(height: 16),
-          ],
-        ),
+          // No data card
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.no_food_rounded,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No Nutrition Data',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'This product exists but has no\nnutrition values available.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                ),
+                const SizedBox(height: 24),
+                // Health score 0 badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFEF9A9A)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Color(0xFFC62828),
+                        size: 16,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'Health Score: 0',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFC62828),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }

@@ -29,7 +29,7 @@ class DatabaseHelper {
   Future<Database> _openProductDb() async {
     final dir = await getApplicationDocumentsDirectory();
     final path = p.join(dir.path, 'nutrition.db');
-    return await openDatabase(path, readOnly: true);
+    return await openDatabase(path, readOnly: false);
   }
 
   /// Re-open product DB after sync replaces the file.
@@ -88,6 +88,20 @@ class DatabaseHelper {
   }
 
   // ─── Product queries ───────────────────────────────────────────────────────
+  /// Insert a product fetched from OpenFoodFacts into local nutrition.db.
+  /// nutrition.db must be opened writable for this — we reopen without readOnly.
+  Future<void> insertProduct(Map<String, dynamic> row) async {
+    final db = await productDatabase;
+    // Build quoted column insert manually — sqflite doesn't quote
+    // column names with spaces automatically
+    final cols = row.keys.map((k) => '"$k"').join(', ');
+    final placeholders = List.filled(row.length, '?').join(', ');
+    final values = row.values.toList();
+    await db.rawInsert(
+      'INSERT OR REPLACE INTO products ($cols) VALUES ($placeholders)',
+      values,
+    );
+  }
 
   Future<Product?> queryProduct(int barcode) async {
     final db = await productDatabase;

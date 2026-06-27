@@ -15,20 +15,26 @@ class HealthScore {
   ///   Fiber          × 4
   ///   Protein        × 2
   ///   Potassium      × 0.01
+  static bool hasAnyData(Product p) {
+    return [
+      p.calories,
+      p.totalFat,
+      p.saturatedFat,
+      p.transFat,
+      p.cholesterol,
+      p.sodium,
+      p.potassium,
+      p.totalCarbs,
+      p.protein,
+      p.sugars,
+      p.fiber,
+    ].any((v) => v != null);
+  }
+
   static int compute(Product p) {
+    if (!hasAnyData(p)) return 0;
+
     double score = 100;
-
-    // // Deductions
-    // score -= p.safeVal(p.transFat) * 10.0;
-    // score -= p.safeVal(p.saturatedFat) * 3.0;
-    // score -= p.safeVal(p.cholesterol) * 0.1;
-    // score -= p.safeVal(p.sodium) * 0.02;
-    // score -= p.safeVal(p.sugars) * 1.5;
-
-    // // Additions
-    // score += p.safeVal(p.fiber) * 4.0;
-    // score += p.safeVal(p.protein) * 2.0;
-    // score += p.safeVal(p.potassium) * 0.01;
 
     score -= (p.transFat ?? 0.0) * 10.0;
     score -= (p.saturatedFat ?? 0.0) * 3.0;

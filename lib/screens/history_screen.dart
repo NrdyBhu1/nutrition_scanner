@@ -4,6 +4,7 @@ import '../models/scan_entry.dart';
 import '../models/product.dart';
 import '../utils/health_score.dart';
 import 'nutrition_screen.dart';
+import '../services/openfoodfacts_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -131,17 +132,59 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   return _HistoryTile(
                     entry: entry,
                     product: product,
-                    onTap: product == null
-                        ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    NutritionScreen(product: product),
-                              ),
+                    onTap: () async {
+                      Product? p = product;
+
+                      // Not in local DB — try API
+                      if (p == null) {
+                        final offResult = await OpenFoodFactsService.fetch(
+                          entry.productId,
+                        );
+                        final offData = offResult.data;
+                        final hasNutrition =
+                            offData != null &&
+                            [
+                              offData['Calories'],
+                              offData['Total Fat'],
+                              offData['Total Carbs'],
+                              offData['Protein'],
+                              offData['Sugars'],
+                              offData['Sodium'],
+                            ].any((v) => v != null);
+
+                        if (offResult.found && hasNutrition) {
+                          try {
+                            await DatabaseHelper.instance.insertProduct(
+                              offResult.data!,
                             );
-                          },
+                          } catch (_) {}
+                          p = await DatabaseHelper.instance.queryProduct(
+                            entry.productId,
+                          );
+                          p ??= Product.fromMap(offResult.data!);
+                        }
+                      }
+
+                      if (p == null) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Product data unavailable'),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      if (context.mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NutritionScreen(product: p!),
+                          ),
+                        );
+                      }
+                    },
                     onDismissed: () => _delete(entry),
                   );
                 },

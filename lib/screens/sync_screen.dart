@@ -4,10 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../db_helper.dart';
+import '../constants.dart';
 
 // ── Hardcoded sync URL ────────────────────────────────────────────────────────
-const String _kDbUrl =
-    'https://database-giggle.netlify.app/nutrition.db'; // ← replace with real URL
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -50,7 +49,7 @@ class _SyncScreenState extends State<SyncScreen> {
       // ── 1. HEAD request to get content-length ─────────────────────────
       setState(() => _statusMsg = 'Checking remote file…');
       final headResp = await http
-          .head(Uri.parse(_kDbUrl))
+          .head(Uri.parse(kDbUrl))
           .timeout(const Duration(seconds: 15));
 
       if (headResp.statusCode != 200) {
@@ -68,7 +67,7 @@ class _SyncScreenState extends State<SyncScreen> {
       final tmpFile = File(tmpPath);
       final sink = tmpFile.openWrite();
 
-      final request = http.Request('GET', Uri.parse(_kDbUrl));
+      final request = http.Request('GET', Uri.parse(kDbUrl));
       final response = await request.send().timeout(
         const Duration(seconds: 60),
       );
@@ -215,7 +214,7 @@ class _SyncScreenState extends State<SyncScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Info Card ─────────────────────────────────────────────
-            _InfoCard(lastSync: _lastSync, fmtDate: _fmtDate, syncUrl: _kDbUrl),
+            _InfoCard(lastSync: _lastSync, fmtDate: _fmtDate, syncUrl: kDbUrl),
             const SizedBox(height: 20),
 
             // ── Status Card ───────────────────────────────────────────
@@ -263,52 +262,52 @@ class _SyncScreenState extends State<SyncScreen> {
             const SizedBox(height: 16),
 
             // ── Warning ───────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF8E1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFD54F)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    color: Color(0xFFF57F17),
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Before syncing',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFF57F17),
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'The existing nutrition.db will be replaced. '
-                          'A backup is saved as nutrition_backup.db '
-                          'in the same directory. '
-                          'Your scan history and profile are not affected.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF795548),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
+            // Container(
+            //   padding: const EdgeInsets.all(14),
+            //   decoration: BoxDecoration(
+            //     color: const Color(0xFFFFF8E1),
+            //     borderRadius: BorderRadius.circular(12),
+            //     border: Border.all(color: const Color(0xFFFFD54F)),
+            //   ),
+            //   child: Row(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       const Icon(
+            //         Icons.warning_amber_rounded,
+            //         color: Color(0xFFF57F17),
+            //         size: 18,
+            //       ),
+            //       const SizedBox(width: 10),
+            //       Expanded(
+            //         child: Column(
+            //           crossAxisAlignment: CrossAxisAlignment.start,
+            //           children: const [
+            //             Text(
+            //               'Before syncing',
+            //               style: TextStyle(
+            //                 fontSize: 13,
+            //                 fontWeight: FontWeight.w700,
+            //                 color: Color(0xFFF57F17),
+            //               ),
+            //             ),
+            //             SizedBox(height: 4),
+            //             Text(
+            //               'The existing nutrition.db will be replaced. '
+            //               'A backup is saved as nutrition_backup.db '
+            //               'in the same directory. '
+            //               'Your scan history and profile are not affected.',
+            //               style: TextStyle(
+            //                 fontSize: 12,
+            //                 color: Color(0xFF795548),
+            //               ),
+            //             ),
+            //           ],
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
+            // const SizedBox(height: 32),
           ],
         ),
       ),
