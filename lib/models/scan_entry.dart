@@ -1,11 +1,13 @@
 class ScanEntry {
   final int id;
   final int productId;
+  final String productName;
   final DateTime scannedAt;
 
   const ScanEntry({
     required this.id,
     required this.productId,
+    required this.productName,
     required this.scannedAt,
   });
 
@@ -13,12 +15,14 @@ class ScanEntry {
     return ScanEntry(
       id: map['id'] as int,
       productId: map['product_id'] as int,
+      productName: map['product_name'] as String,
       scannedAt: DateTime.parse(map['scanned_at'] as String),
     );
   }
 
   Map<String, dynamic> toMap() => {
     'product_id': productId,
+    'product_name': productName,
     'scanned_at': scannedAt.toIso8601String(),
   };
 

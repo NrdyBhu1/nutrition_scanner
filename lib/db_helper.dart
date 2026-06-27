@@ -58,6 +58,7 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS scan_history (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id  INTEGER NOT NULL,
+        product_name TEXT NOT NULL,
         scanned_at  TEXT    NOT NULL
       )
     ''');
@@ -114,10 +115,11 @@ class DatabaseHelper {
 
   // ─── Scan history queries ──────────────────────────────────────────────────
 
-  Future<void> insertScanEntry(int productId) async {
+  Future<void> insertScanEntry(int productId, String productName) async {
     final db = await appDatabase;
     await db.insert('scan_history', {
       'product_id': productId,
+      'product_name': productName,
       'scanned_at': DateTime.now().toIso8601String(),
     });
   }

@@ -229,7 +229,7 @@ class _HistoryTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Barcode: ${entry.productId}',
+                        entry.productName,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,

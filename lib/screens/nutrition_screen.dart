@@ -74,13 +74,16 @@ class _NutritionScreenState extends State<NutritionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── Allergen Banner ───────────────────────────────────────────
-            _AllergenBanner(product: product),
-            const SizedBox(height: 12),
-
-            // ── Add to Daily Tracker ──────────────────────────────────────
-            _AddToDailyButton(product: product),
-            const SizedBox(height: 16),
+            Text(
+              product.productName,
+              style: const TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A2E),
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 20),
             // ── Health Score Card ─────────────────────────────────────────
             _HealthScoreCard(score: score),
             const SizedBox(height: 20),
@@ -104,11 +107,18 @@ class _NutritionScreenState extends State<NutritionScreen> {
               const SizedBox(height: 20),
             ],
 
+            // ── Allergen Banner ───────────────────────────────────────────
+            _AllergenBanner(product: product),
+            const SizedBox(height: 12),
+
             // ── Nutrition Table ───────────────────────────────────────────
             _SectionHeader(title: 'Full Nutrition Facts'),
             const SizedBox(height: 12),
             _NutritionTable(rows: product.tableRows),
             const SizedBox(height: 32),
+            // ── Add to Daily Tracker ──────────────────────────────────────
+            _AddToDailyButton(product: product),
+            const SizedBox(height: 16),
           ],
         ),
       ),

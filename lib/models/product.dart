@@ -1,5 +1,6 @@
 class Product {
   final int productId;
+  final String productName;
   final double? calories;
   final double? totalFat;
   final double? saturatedFat;
@@ -15,6 +16,7 @@ class Product {
 
   const Product({
     required this.productId,
+    required this.productName,
     this.calories,
     this.totalFat,
     this.saturatedFat,
@@ -32,6 +34,7 @@ class Product {
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
       productId: map['product_id'] as int,
+      productName: map['Name'] as String,
       calories: (map['Calories'] as num?)?.toDouble(),
       totalFat: (map['Total Fat'] as num?)?.toDouble(),
       saturatedFat: (map['Saturated Fat'] as num?)?.toDouble(),

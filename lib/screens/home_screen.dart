@@ -69,7 +69,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await _controller.start();
         setState(() => _isProcessing = false);
       } else {
-        await DatabaseHelper.instance.insertScanEntry(product.productId);
+        await DatabaseHelper.instance.insertScanEntry(
+          product.productId,
+          product.productName,
+        );
         final profile = await DatabaseHelper.instance.fetchProfile();
         final rdi = RdiConstants.scaledForUser(profile);
         final today = await DatabaseHelper.instance.fetchDailyIntake(
