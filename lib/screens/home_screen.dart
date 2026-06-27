@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../db_helper.dart';
 import 'nutrition_screen.dart';
+import '../utils/allergen_checker.dart';
+import '../utils/rdi_constants.dart';
+import '../models/user_profile.dart';
+import '../models/daily_intake.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,6 +69,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await _controller.start();
         setState(() => _isProcessing = false);
       } else {
+        await DatabaseHelper.instance.insertScanEntry(product.productId);
+        final profile = await DatabaseHelper.instance.fetchProfile();
+        final rdi = RdiConstants.scaledForUser(profile);
+        final today = await DatabaseHelper.instance.fetchDailyIntake(
+          DailyIntake.todayKey,
+        );
+        final allergenResult = AllergenChecker.check(product, profile);
+
+        // Show allergen warning before navigating
+        if (allergenResult.hasMatch && mounted) {
+          await _showAllergenWarning(allergenResult);
+        }
+
+        // Nutrient alert check
+        if (today.exceedsAlert(
+              sodiumRdi: rdi['Sodium'] ?? 2300,
+              sugarRdi: rdi['Sugars'] ?? 50,
+              fatRdi: rdi['Total Fat'] ?? 78,
+              alertSodiumPct: profile.alertSodiumPct,
+              alertSugarPct: profile.alertSugarPct,
+              alertFatPct: profile.alertFatPct,
+            ) &&
+            mounted) {
+          _showNutrientAlert();
+        }
         await Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => NutritionScreen(product: product)),
@@ -82,6 +111,68 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         setState(() => _isProcessing = false);
       }
     }
+  }
+
+  Future<void> _showAllergenWarning(AllergenResult result) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: Colors.red,
+          size: 36,
+        ),
+        title: const Text(
+          'Allergen Alert',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              result.matchSummary,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'All flags: ${result.fullFlagSummary}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Continue Anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNutrientAlert() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              Icons.notifications_active_rounded,
+              color: Colors.orange,
+              size: 18,
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Daily nutrient limit approaching! Check your tracker.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        duration: Duration(seconds: 4),
+      ),
+    );
   }
 
   void _showSnack(String msg) {

@@ -1,16 +1,17 @@
 class Product {
   final int productId;
-  final int? calories;
-  final int? totalFat;
-  final int? saturatedFat;
-  final int? transFat;
-  final int? cholesterol;
-  final int? sodium;
-  final int? potassium;
-  final int? totalCarbs;
-  final int? protein;
-  final int? sugars;
-  final int? fiber;
+  final double? calories;
+  final double? totalFat;
+  final double? saturatedFat;
+  final double? transFat;
+  final double? cholesterol;
+  final double? sodium;
+  final double? potassium;
+  final double? totalCarbs;
+  final double? protein;
+  final double? sugars;
+  final double? fiber;
+  final List<String> allergens;
 
   const Product({
     required this.productId,
@@ -25,30 +26,38 @@ class Product {
     this.protein,
     this.sugars,
     this.fiber,
+    this.allergens = const [],
   });
 
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
       productId: map['product_id'] as int,
-      calories: map['Calories'] as int?,
-      totalFat: map['Total Fat'] as int?,
-      saturatedFat: map['Saturated Fat'] as int?,
-      transFat: map['Trans Fat'] as int?,
-      cholesterol: map['Cholesterol'] as int?,
-      sodium: map['Sodium'] as int?,
-      potassium: map['Potassium'] as int?,
-      totalCarbs: map['Total Carbs'] as int?,
-      protein: map['Protein'] as int?,
-      sugars: map['Sugars'] as int?,
-      fiber: map['Fiber'] as int?,
+      calories: (map['Calories'] as num?)?.toDouble(),
+      totalFat: (map['Total Fat'] as num?)?.toDouble(),
+      saturatedFat: (map['Saturated Fat'] as num?)?.toDouble(),
+      transFat: (map['Trans Fat'] as num?)?.toDouble(),
+      cholesterol: (map['Cholesterol'] as num?)?.toDouble(),
+      sodium: (map['Sodium'] as num?)?.toDouble(),
+      potassium: (map['Potassium'] as num?)?.toDouble(),
+      totalCarbs: (map['Total Carbs'] as num?)?.toDouble(),
+      protein: (map['Protein'] as num?)?.toDouble(),
+      sugars: (map['Sugars'] as num?)?.toDouble(),
+      fiber: (map['Fiber'] as num?)?.toDouble(),
+      allergens: _parseAllergens(map['Allergens'] as String?),
     );
   }
 
+  static List<String> _parseAllergens(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return const [];
+    return raw.split(',').map((e) => e.trim().toLowerCase()).toList();
+  }
+
   /// Returns nutrient value or 0 if null — used for calculations.
-  int safeVal(int? v) => v ?? 0;
+  // int safeVal(int? v) => v ?? 0;
+  double safeVal(double? v) => v ?? 0;
 
   /// All chart-eligible nutrients (excludes Calories).
-  Map<String, int> get chartNutrients {
+  Map<String, double> get chartNutrients {
     final raw = {
       'Total Fat': totalFat,
       'Total Carbs': totalCarbs,
@@ -69,8 +78,24 @@ class Product {
     );
   }
 
+  /// True if product contains any of the user's known allergens.
+  bool hasAllergenMatch(List<String> userAllergens) {
+    if (allergens.isEmpty || userAllergens.isEmpty) return false;
+    return allergens.any(
+      (a) => userAllergens.any((u) => a.contains(u) || u.contains(a)),
+    );
+  }
+
+  /// Allergens that match user's known list.
+  List<String> matchedAllergens(List<String> userAllergens) {
+    if (allergens.isEmpty || userAllergens.isEmpty) return [];
+    return allergens
+        .where((a) => userAllergens.any((u) => a.contains(u) || u.contains(a)))
+        .toList();
+  }
+
   /// Full nutrition table rows including Calories — null shown as "—" in UI.
-  List<MapEntry<String, int?>> get tableRows => [
+  List<MapEntry<String, double?>> get tableRows => [
     MapEntry('Calories', calories),
     MapEntry('Total Fat', totalFat),
     MapEntry('Saturated Fat', saturatedFat),
@@ -82,5 +107,6 @@ class Product {
     MapEntry('Protein', protein),
     MapEntry('Sugars', sugars),
     MapEntry('Fiber', fiber),
+    // MapEntry('Allergens', allergens),
   ];
 }

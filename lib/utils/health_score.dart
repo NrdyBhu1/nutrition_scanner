@@ -18,17 +18,27 @@ class HealthScore {
   static int compute(Product p) {
     double score = 100;
 
-    // Deductions
-    score -= p.safeVal(p.transFat) * 10.0;
-    score -= p.safeVal(p.saturatedFat) * 3.0;
-    score -= p.safeVal(p.cholesterol) * 0.1;
-    score -= p.safeVal(p.sodium) * 0.02;
-    score -= p.safeVal(p.sugars) * 1.5;
+    // // Deductions
+    // score -= p.safeVal(p.transFat) * 10.0;
+    // score -= p.safeVal(p.saturatedFat) * 3.0;
+    // score -= p.safeVal(p.cholesterol) * 0.1;
+    // score -= p.safeVal(p.sodium) * 0.02;
+    // score -= p.safeVal(p.sugars) * 1.5;
 
-    // Additions
-    score += p.safeVal(p.fiber) * 4.0;
-    score += p.safeVal(p.protein) * 2.0;
-    score += p.safeVal(p.potassium) * 0.01;
+    // // Additions
+    // score += p.safeVal(p.fiber) * 4.0;
+    // score += p.safeVal(p.protein) * 2.0;
+    // score += p.safeVal(p.potassium) * 0.01;
+
+    score -= (p.transFat ?? 0.0) * 10.0;
+    score -= (p.saturatedFat ?? 0.0) * 3.0;
+    score -= (p.cholesterol ?? 0.0) * 0.1;
+    score -= (p.sodium ?? 0.0) * 0.02;
+    score -= (p.sugars ?? 0.0) * 1.5;
+
+    score += (p.fiber ?? 0.0) * 4.0;
+    score += (p.protein ?? 0.0) * 2.0;
+    score += (p.potassium ?? 0.0) * 0.01;
 
     return score.round().clamp(0, 100);
   }

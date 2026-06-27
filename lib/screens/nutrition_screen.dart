@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/product.dart';
 import '../utils/health_score.dart';
+import '../db_helper.dart';
+import '../models/user_profile.dart';
+import '../models/daily_intake.dart';
+import '../utils/allergen_checker.dart';
 
 // Distinct colors for pie segments
 const List<Color> _kSegmentColors = [
@@ -34,7 +38,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
     final score = HealthScore.compute(product);
     final chartData = product.chartNutrients; // Map<String, int>
     final entries = chartData.entries.toList();
-    final total = entries.fold<int>(0, (sum, e) => sum + e.value);
+    final total = entries.fold<double>(0, (sum, e) => sum + e.value);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -70,12 +74,19 @@ class _NutritionScreenState extends State<NutritionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ── Allergen Banner ───────────────────────────────────────────
+            _AllergenBanner(product: product),
+            const SizedBox(height: 12),
+
+            // ── Add to Daily Tracker ──────────────────────────────────────
+            _AddToDailyButton(product: product),
+            const SizedBox(height: 16),
             // ── Health Score Card ─────────────────────────────────────────
             _HealthScoreCard(score: score),
             const SizedBox(height: 20),
 
             // ── Calories Badge ────────────────────────────────────────────
-            _CaloriesBadge(calories: product.calories),
+            _CaloriesBadge(calories: product.calories!.toInt()),
             const SizedBox(height: 20),
 
             // ── Pie Chart ─────────────────────────────────────────────────
@@ -247,8 +258,8 @@ class _CaloriesBadge extends StatelessWidget {
 // ─── Pie Chart Card ───────────────────────────────────────────────────────────
 
 class _PieCard extends StatelessWidget {
-  final List<MapEntry<String, int>> entries;
-  final int total;
+  final List<MapEntry<String, double>> entries;
+  final double total;
   final int touchedIndex;
   final void Function(int) onTouch;
 
@@ -299,7 +310,7 @@ class _PieCard extends StatelessWidget {
 
             return PieChartSectionData(
               color: color,
-              value: entry.value.toDouble(),
+              value: entry.value,
               radius: touched ? 72 : 60,
               title: touched ? '${pct.toStringAsFixed(1)}%' : '',
               titleStyle: const TextStyle(
@@ -340,7 +351,7 @@ class _PieCard extends StatelessWidget {
 // ─── Legend ───────────────────────────────────────────────────────────────────
 
 class _Legend extends StatelessWidget {
-  final List<MapEntry<String, int>> entries;
+  final List<MapEntry<String, double>> entries;
   const _Legend({required this.entries});
 
   @override
@@ -373,7 +384,7 @@ class _Legend extends StatelessWidget {
 // ─── Nutrition Table ──────────────────────────────────────────────────────────
 
 class _NutritionTable extends StatelessWidget {
-  final List<MapEntry<String, int?>> rows;
+  final List<MapEntry<String, double?>> rows;
   const _NutritionTable({required this.rows});
 
   @override
@@ -427,7 +438,12 @@ class _NutritionTable extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  row.value != null ? '${row.value}' : '—',
+                  // row.value != null ? '${row.value}' : '—',
+                  row.value != null
+                      ? row.value! % 1 == 0
+                            ? '${row.value!.toInt()}'
+                            : row.value!.toStringAsFixed(2)
+                      : '—',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: isCalorie ? FontWeight.w700 : FontWeight.w600,
@@ -460,6 +476,194 @@ class _SectionHeader extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: Color(0xFF1A1A2E),
         letterSpacing: 0.3,
+      ),
+    );
+  }
+}
+// ─── Allergen Banner ──────────────────────────────────────────────────────────
+
+class _AllergenBanner extends StatefulWidget {
+  final Product product;
+  const _AllergenBanner({required this.product});
+
+  @override
+  State<_AllergenBanner> createState() => _AllergenBannerState();
+}
+
+class _AllergenBannerState extends State<_AllergenBanner> {
+  AllergenResult? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final profile = await DatabaseHelper.instance.fetchProfile();
+    final result = AllergenChecker.check(widget.product, profile);
+    if (mounted) setState(() => _result = result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_result == null) return const SizedBox.shrink();
+
+    final allFlags = _result!.allFlags;
+    if (allFlags.isEmpty) return const SizedBox.shrink();
+
+    final hasMatch = _result!.hasMatch;
+    final bgColor = hasMatch
+        ? const Color(0xFFFFEBEE)
+        : const Color(0xFFFFF8E1);
+    final border = hasMatch ? const Color(0xFFEF9A9A) : const Color(0xFFFFD54F);
+    final iconColor = hasMatch
+        ? const Color(0xFFC62828)
+        : const Color(0xFFF57F17);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: iconColor, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                hasMatch ? 'Allergen Match!' : 'Contains Allergens',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: iconColor,
+                ),
+              ),
+            ],
+          ),
+          if (hasMatch) ...[
+            const SizedBox(height: 6),
+            Text(
+              _result!.matchSummary,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFC62828)),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: allFlags.map((key) {
+              final color = AllergenChecker.colorFor(key);
+              final matched = _result!.matched.contains(key);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(matched ? 0.2 : 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: color.withOpacity(matched ? 0.6 : 0.2),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(AllergenChecker.iconFor(key), size: 12, color: color),
+                    const SizedBox(width: 4),
+                    Text(
+                      AllergenChecker.labelFor(key),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: matched ? FontWeight.w700 : FontWeight.w500,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Add to Daily Button ──────────────────────────────────────────────────────
+
+class _AddToDailyButton extends StatefulWidget {
+  final Product product;
+  const _AddToDailyButton({required this.product});
+
+  @override
+  State<_AddToDailyButton> createState() => _AddToDailyButtonState();
+}
+
+class _AddToDailyButtonState extends State<_AddToDailyButton> {
+  bool _adding = false;
+  bool _added = false;
+
+  Future<void> _add() async {
+    setState(() => _adding = true);
+    await DatabaseHelper.instance.logToDaily(widget.product.productId);
+    if (mounted) {
+      setState(() {
+        _adding = false;
+        _added = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to today\'s tracker')),
+      );
+      // Reset after 3s so user can add again (multiple servings)
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _added = false);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _adding ? null : _add,
+        icon: _adding
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                _added
+                    ? Icons.check_circle_rounded
+                    : Icons.add_circle_outline_rounded,
+                color: _added
+                    ? const Color(0xFF2E7D32)
+                    : const Color(0xFF00BCD4),
+              ),
+        label: Text(
+          _adding
+              ? 'Adding…'
+              : _added
+              ? 'Added to Tracker'
+              : 'Add to Today\'s Tracker',
+          style: TextStyle(
+            color: _added ? const Color(0xFF2E7D32) : const Color(0xFF00BCD4),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          side: BorderSide(
+            color: _added ? const Color(0xFF2E7D32) : const Color(0xFF00BCD4),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
       ),
     );
   }
