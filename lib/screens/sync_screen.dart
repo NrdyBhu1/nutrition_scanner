@@ -7,7 +7,7 @@ import '../db_helper.dart';
 
 // ── Hardcoded sync URL ────────────────────────────────────────────────────────
 const String _kDbUrl =
-    'http://10.0.2.2:9001/nutrition.db'; // ← replace with real URL
+    'https://database-giggle.netlify.app/nutrition.db'; // ← replace with real URL
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
