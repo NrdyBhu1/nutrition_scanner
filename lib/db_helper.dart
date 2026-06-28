@@ -203,17 +203,29 @@ class DatabaseHelper {
     }
 
     final productDb = await productDatabase;
-    final placeholders = List.filled(ids.length, '?').join(',');
+    final uniqueIds = ids.toSet().toList();
+    final placeholders = List.filled(uniqueIds.length, '?').join(',');
     final productRows = await productDb.query(
       'products',
       where: 'product_id IN ($placeholders)',
-      whereArgs: ids,
+      whereArgs: uniqueIds,
     );
+
+    // Build a lookup map so we can repeat rows for duplicate entries
+    final productMap = {
+      for (final row in productRows) row['product_id'] as int: row,
+    };
+
+    // Expand rows to match every logged entry including duplicates
+    final expandedRows = ids
+        .where((id) => productMap.containsKey(id))
+        .map((id) => productMap[id]!)
+        .toList();
 
     return DailyIntake.fromProducts(
       date: date,
       productIds: ids,
-      productRows: productRows,
+      productRows: expandedRows,
     );
   }
 
