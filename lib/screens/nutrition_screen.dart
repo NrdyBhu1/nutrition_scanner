@@ -4,6 +4,7 @@ import '../models/product.dart';
 import '../utils/health_score.dart';
 import '../db_helper.dart';
 import '../utils/allergen_checker.dart';
+import '../utils/consumption_rating.dart';
 
 // Distinct colors for pie segments
 const List<Color> _kSegmentColors = [
@@ -35,6 +36,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
     final product = widget.product;
     final hasData = HealthScore.hasAnyData(product);
     final score = HealthScore.compute(product);
+    final rating = hasData ? ConsumptionRater.rate(product, score) : null;
     final chartData = product.chartNutrients; // Map<String, int>
     final entries = chartData.entries.toList();
     final total = entries.fold<double>(0, (sum, e) => sum + e.value);
@@ -86,7 +88,11 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   ),
                   const SizedBox(height: 20),
                   // ── Health Score Card ─────────────────────────────────────────
-                  _HealthScoreCard(score: score),
+                  _HealthScoreCard(score: score, weightG: product.weightG),
+                  const SizedBox(height: 20),
+
+                  // ── Consumption Rating ────────────────────────────────────────
+                  if (rating != null) _ConsumptionRatingCard(result: rating),
                   const SizedBox(height: 20),
 
                   // ── Calories Badge ────────────────────────────────────────────
@@ -227,7 +233,8 @@ class _NoDataView extends StatelessWidget {
 
 class _HealthScoreCard extends StatelessWidget {
   final int score;
-  const _HealthScoreCard({required this.score});
+  final double? weightG;
+  const _HealthScoreCard({required this.score, this.weightG});
 
   @override
   Widget build(BuildContext context) {
@@ -286,7 +293,9 @@ class _HealthScoreCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Health Score  •  out of 100',
+                  weightG != null
+                      ? 'Health Score  •  for ${weightG!.toStringAsFixed(0)}g'
+                      : 'Health Score  •  per 100g',
                   style: TextStyle(fontSize: 12, color: color.withOpacity(0.7)),
                 ),
                 const SizedBox(height: 10),
@@ -771,6 +780,106 @@ class _AddToDailyButtonState extends State<_AddToDailyButton> {
             borderRadius: BorderRadius.circular(14),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Consumption Rating Card ──────────────────────────────────────────────────
+class _ConsumptionRatingCard extends StatelessWidget {
+  final ConsumptionResult result;
+  const _ConsumptionRatingCard({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: result.bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: result.color.withOpacity(0.3), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Text(result.emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    result.label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: result.color,
+                    ),
+                  ),
+                  Text(
+                    result.description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: result.color.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              // Frequency dots indicator
+              Row(
+                children: List.generate(4, (i) {
+                  final filled = i <= result.rating.index;
+                  return Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(left: 4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: filled
+                          ? result.color
+                          : result.color.withOpacity(0.2),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+
+          // Reasons
+          if (result.reasons.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            ...result.reasons.map(
+              (r) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.arrow_right_rounded,
+                      size: 16,
+                      color: result.color,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        r,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: result.color.withOpacity(0.85),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -51,6 +51,9 @@ class OpenFoodFactsService {
       final row = <String, dynamic>{
         'product_id': barcode,
         'Name': name,
+        'weight_g': _parseWeight(
+          product['product_quantity'] ?? product['quantity'],
+        ),
         'Calories': _num(nutriments['energy-kcal_100g']),
         'Total Fat': _num(nutriments['fat_100g']),
         'Saturated Fat': _num(nutriments['saturated-fat_100g']),
@@ -82,5 +85,22 @@ class OpenFoodFactsService {
   static double? _numMgFromG(dynamic v) {
     if (v == null) return null;
     return (v as num).toDouble() * 1000;
+  }
+
+  /// Parse weight from product_quantity field e.g. "400", "400 g", "400g", "1 kg"
+  static double? _parseWeight(dynamic raw) {
+    if (raw == null) return null;
+    final str = raw.toString().trim().toLowerCase();
+
+    // Extract first number from string
+    final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(str);
+    if (match == null) return null;
+
+    final value = double.tryParse(match.group(1)!);
+    if (value == null) return null;
+
+    // Convert kg to g
+    if (str.contains('kg')) return value * 1000;
+    return value;
   }
 }

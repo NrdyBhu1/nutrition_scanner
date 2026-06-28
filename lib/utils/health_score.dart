@@ -34,17 +34,31 @@ class HealthScore {
   static int compute(Product p) {
     if (!hasAnyData(p)) return 0;
 
+    // Scale factor — if weight unknown default to 100g (no scaling)
+    final weight = p.weightG ?? 100.0;
+    final scale = weight / 100.0;
+
+    // Scale all per-100g values to actual product weight
+    final transFat = (p.transFat ?? 0.0) * scale;
+    final saturatedFat = (p.saturatedFat ?? 0.0) * scale;
+    final cholesterol = (p.cholesterol ?? 0.0) * scale;
+    final sodium = (p.sodium ?? 0.0) * scale;
+    final sugars = (p.sugars ?? 0.0) * scale;
+    final fiber = (p.fiber ?? 0.0) * scale;
+    final protein = (p.protein ?? 0.0) * scale;
+    final potassium = (p.potassium ?? 0.0) * scale;
+
     double score = 100;
 
-    score -= (p.transFat ?? 0.0) * 10.0;
-    score -= (p.saturatedFat ?? 0.0) * 3.0;
-    score -= (p.cholesterol ?? 0.0) * 0.1;
-    score -= (p.sodium ?? 0.0) * 0.02;
-    score -= (p.sugars ?? 0.0) * 1.5;
+    score -= transFat * 10.0;
+    score -= saturatedFat * 3.0;
+    score -= cholesterol * 0.1;
+    score -= sodium * 0.02;
+    score -= sugars * 1.5;
 
-    score += (p.fiber ?? 0.0) * 4.0;
-    score += (p.protein ?? 0.0) * 2.0;
-    score += (p.potassium ?? 0.0) * 0.01;
+    score += fiber * 4.0;
+    score += protein * 2.0;
+    score += potassium * 0.01;
 
     return score.round().clamp(0, 100);
   }
