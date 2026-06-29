@@ -89,9 +89,6 @@ class _NutritionScreenState extends State<NutritionScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // ── Health Score Card ─────────────────────────────────────────
-                  _HealthScoreCard(score: score, weightG: product.weightG),
-                  const SizedBox(height: 20),
 
                   // ── Consumption Rating ────────────────────────────────────────
                   if (rating != null) _ConsumptionRatingCard(result: rating),
@@ -197,130 +194,10 @@ class _NoDataView extends StatelessWidget {
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                 ),
                 const SizedBox(height: 24),
-                // Health score 0 badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFEF9A9A)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.warning_amber_rounded,
-                        color: Color(0xFFC62828),
-                        size: 16,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Health Score: 0',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFC62828),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
           const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Health Score Card ────────────────────────────────────────────────────────
-
-class _HealthScoreCard extends StatelessWidget {
-  final int score;
-  final double? weightG;
-  const _HealthScoreCard({required this.score, this.weightG});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = HealthScore.color(score);
-    final bgColor = HealthScore.bgColor(score);
-    final label = HealthScore.label(score);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
-      ),
-      child: Row(
-        children: [
-          // Score circle
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.25),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Center(
-              child: Text(
-                '$score',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  weightG != null
-                      ? 'Health Score  •  for ${weightG!.toStringAsFixed(0)}g'
-                      : 'Health Score  •  per 100g',
-                  style: TextStyle(fontSize: 12, color: color.withOpacity(0.7)),
-                ),
-                const SizedBox(height: 10),
-                // Progress bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: score / 100,
-                    backgroundColor: color.withOpacity(0.15),
-                    valueColor: AlwaysStoppedAnimation<Color>(color),
-                    minHeight: 6,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
