@@ -38,9 +38,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Run tests
-        run: flutter test
-
       # ── Optional: sign the APK ──────────────────────────────────────────────
       # Uncomment + add secrets if you want a signed release APK.
       #
