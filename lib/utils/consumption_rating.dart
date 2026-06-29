@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/product.dart';
+import 'ingredient_analyzer.dart';
 
 enum ConsumptionRating { daily, occasional, limit, rarely }
 
@@ -51,6 +52,9 @@ class ConsumptionRater {
   static ConsumptionResult rate(Product p, int healthScore) {
     final reasons = <String>[];
     var worst = ConsumptionRating.daily;
+
+    // Ingredient analysis
+    final ingredientResult = IngredientAnalyzer.analyse(p.ingredients);
 
     // Always per 100g for frequency rating — not scaled by weight
     final transFat = p.transFat ?? 0.0;
@@ -119,6 +123,53 @@ class ConsumptionRater {
     } else if (calories > _caloriesLimit) {
       worst = _worst(worst, ConsumptionRating.limit);
       reasons.add('High calories (${calories.toStringAsFixed(0)}kcal/100g)');
+    }
+
+    // ── Ingredient checks ─────────────────────────────────────────────────
+    if (ingredientResult.hasAnyFlags) {
+      for (final flag in ingredientResult.flags) {
+        switch (flag.severity) {
+          case IngredientFlagSeverity.danger:
+            worst = _worst(worst, ConsumptionRating.rarely);
+            reasons.add('${flag.name}: ${flag.matchedTerms.first}');
+            break;
+          case IngredientFlagSeverity.warning:
+            worst = _worst(worst, ConsumptionRating.limit);
+            reasons.add('${flag.name} detected');
+            break;
+          case IngredientFlagSeverity.caution:
+            worst = _worst(worst, ConsumptionRating.occasional);
+            reasons.add('Contains ${flag.name.toLowerCase()}');
+            break;
+          case IngredientFlagSeverity.info:
+            // Info flags don't affect rating but add to reasons
+            reasons.add('Note: ${flag.name}');
+            break;
+        }
+      }
+    }
+
+    // Ultra-processed override — if multiple warning-level ingredient
+    // flags exist, bump to rarely regardless of nutrients
+    if (ingredientResult.isUltraProcessed &&
+        ingredientResult.flags
+                .where(
+                  (f) =>
+                      f.severity.index >= IngredientFlagSeverity.caution.index,
+                )
+                .length >=
+            3) {
+      worst = _worst(worst, ConsumptionRating.rarely);
+      reasons.add('Heavily ultra-processed product');
+    }
+
+    // Artificial sweetener special case — products with zero sugar
+    // but artificial sweeteners shouldn't be rated daily
+    if (ingredientResult.hasArtificialSweeteners && (p.sugars ?? 0.0) < 1.0) {
+      worst = _worst(worst, ConsumptionRating.occasional);
+      if (!reasons.any((r) => r.contains('sweetener'))) {
+        reasons.add('Zero-sugar product uses artificial sweeteners');
+      }
     }
 
     // ── Health score override ─────────────────────────────────────────────

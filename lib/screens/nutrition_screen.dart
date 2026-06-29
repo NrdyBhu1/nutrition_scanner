@@ -5,6 +5,7 @@ import '../utils/health_score.dart';
 import '../db_helper.dart';
 import '../utils/allergen_checker.dart';
 import '../utils/consumption_rating.dart';
+import '../utils/ingredient_analyzer.dart';
 
 // Distinct colors for pie segments
 const List<Color> _kSegmentColors = [
@@ -37,6 +38,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
     final hasData = HealthScore.hasAnyData(product);
     final score = HealthScore.compute(product);
     final rating = hasData ? ConsumptionRater.rate(product, score) : null;
+    final ingredientResult = IngredientAnalyzer.analyse(product.ingredients);
     final chartData = product.chartNutrients; // Map<String, int>
     final entries = chartData.entries.toList();
     final total = entries.fold<double>(0, (sum, e) => sum + e.value);
@@ -94,6 +96,13 @@ class _NutritionScreenState extends State<NutritionScreen> {
                   // ── Consumption Rating ────────────────────────────────────────
                   if (rating != null) _ConsumptionRatingCard(result: rating),
                   const SizedBox(height: 20),
+
+                  // ── Ingredient Flags ──────────────────────────────────────────
+                  if (ingredientResult.hasAnyFlags) ...[
+                    _IngredientFlagsCard(result: ingredientResult),
+                    const SizedBox(height: 20),
+                  ] else
+                    const SizedBox(height: 8),
 
                   // ── Calories Badge ────────────────────────────────────────────
                   _CaloriesBadge(calories: product.calories?.toInt()),
@@ -879,6 +888,214 @@ class _ConsumptionRatingCard extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Ingredient Flags Card ────────────────────────────────────────────────────
+
+class _IngredientFlagsCard extends StatefulWidget {
+  final IngredientAnalysisResult result;
+  const _IngredientFlagsCard({required this.result});
+
+  @override
+  State<_IngredientFlagsCard> createState() => _IngredientFlagsCardState();
+}
+
+class _IngredientFlagsCardState extends State<_IngredientFlagsCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final flags = widget.result.flags;
+    final worst = widget.result.worstSeverity;
+    final worstFlag = flags.firstWhere(
+      (f) => f.severity == worst,
+      orElse: () => flags.first,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header — always visible
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: worstFlag.bgColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      worstFlag.icon,
+                      color: worstFlag.color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Ingredient Concerns',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A2E),
+                          ),
+                        ),
+                        Text(
+                          '${flags.length} issue${flags.length > 1 ? 's' : ''} found'
+                          ' • Worst: ${worstFlag.severityLabel}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF888888),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: const Color(0xFF888888),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Expanded flags list
+          if (_expanded) ...[
+            const Divider(height: 1),
+            ...flags.map((flag) => _FlagTile(flag: flag)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FlagTile extends StatelessWidget {
+  final IngredientFlag flag;
+  const _FlagTile({required this.flag});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: flag.bgColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(flag.icon, size: 14, color: flag.color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      flag.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: flag.color,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: flag.bgColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        flag.severityLabel,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: flag.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  flag.description,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF666666),
+                  ),
+                ),
+                if (flag.matchedTerms.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: flag.matchedTerms
+                        .take(4) // show max 4 matched terms
+                        .map(
+                          (term) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: flag.color.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              term,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: flag.color,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

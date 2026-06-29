@@ -13,6 +13,7 @@ class Product {
   final double? sugars;
   final double? fiber;
   final double? weightG;
+  final String? ingredients;
   final List<String> allergens;
 
   const Product({
@@ -30,6 +31,7 @@ class Product {
     this.sugars,
     this.fiber,
     this.weightG,
+    this.ingredients,
     this.allergens = const [],
   });
 
@@ -49,6 +51,7 @@ class Product {
       sugars: (map['Sugars'] as num?)?.toDouble(),
       fiber: (map['Fiber'] as num?)?.toDouble(),
       weightG: (map['weight_g'] as num?)?.toDouble(),
+      ingredients:  map['Ingredients']  as String?,
       allergens: _parseAllergens(map['Allergens'] as String?),
     );
   }
@@ -75,7 +78,6 @@ class Product {
       'Potassium': potassium,
       'Saturated Fat': saturatedFat,
       'Trans Fat': transFat,
-      'Weight': weightG,
     };
     // Only include non-null, non-zero entries in pie chart
     return Map.fromEntries(

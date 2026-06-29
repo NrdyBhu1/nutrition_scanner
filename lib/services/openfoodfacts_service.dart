@@ -54,6 +54,11 @@ class OpenFoodFactsService {
         'weight_g': _parseWeight(
           product['product_quantity'] ?? product['quantity'],
         ),
+        'Ingredients':
+            (product['ingredients_text_en'] as String?)?.trim().isNotEmpty ==
+                true
+            ? product['ingredients_text_en'] as String
+            : (product['ingredients_text'] as String?)?.trim(),
         'Calories': _num(nutriments['energy-kcal_100g']),
         'Total Fat': _num(nutriments['fat_100g']),
         'Saturated Fat': _num(nutriments['saturated-fat_100g']),

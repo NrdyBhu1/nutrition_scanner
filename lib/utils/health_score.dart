@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/product.dart';
+import 'ingredient_analyzer.dart';
 
 class HealthScore {
   /// Computes 0–100 health score from product nutrients.
@@ -59,6 +60,10 @@ class HealthScore {
     score += fiber * 4.0;
     score += protein * 2.0;
     score += potassium * 0.01;
+
+    // Apply ingredient penalty
+    final ingredientAnalysis = IngredientAnalyzer.analyse(p.ingredients);
+    score -= ingredientAnalysis.totalPenalty;
 
     return score.round().clamp(0, 100);
   }
