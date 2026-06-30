@@ -8,6 +8,7 @@ class UserProfile {
   final int alertSodiumPct; // % of RDI before alert fires
   final int alertSugarPct;
   final int alertFatPct;
+  final int alertPotassiumPct;
   final List<String> knownAllergens; // e.g. ['gluten','nuts','dairy']
 
   const UserProfile({
@@ -20,6 +21,7 @@ class UserProfile {
     this.alertSodiumPct = 50,
     this.alertSugarPct = 50,
     this.alertFatPct = 50,
+    this.alertPotassiumPct = 100,
     this.knownAllergens = const [],
   });
 
@@ -39,6 +41,7 @@ class UserProfile {
       alertSodiumPct: map['alert_sodium'] as int? ?? 50,
       alertSugarPct: map['alert_sugar'] as int? ?? 50,
       alertFatPct: map['alert_fat'] as int? ?? 50,
+      alertPotassiumPct: map['alert_potassium'] as int? ?? 100,
       knownAllergens: allergenRaw.isEmpty
           ? []
           : allergenRaw.split(',').map((e) => e.trim()).toList(),
@@ -55,6 +58,7 @@ class UserProfile {
     'alert_sodium': alertSodiumPct,
     'alert_sugar': alertSugarPct,
     'alert_fat': alertFatPct,
+    'alert_potassium': alertPotassiumPct,
     'known_allergens': knownAllergens.join(','),
   };
 
@@ -67,6 +71,7 @@ class UserProfile {
     int? alertSodiumPct,
     int? alertSugarPct,
     int? alertFatPct,
+    int? alertPotassiumPct,
     List<String>? knownAllergens,
   }) {
     return UserProfile(
@@ -79,6 +84,7 @@ class UserProfile {
       alertSodiumPct: alertSodiumPct ?? this.alertSodiumPct,
       alertSugarPct: alertSugarPct ?? this.alertSugarPct,
       alertFatPct: alertFatPct ?? this.alertFatPct,
+      alertPotassiumPct: alertPotassiumPct ?? this.alertPotassiumPct,
       knownAllergens: knownAllergens ?? this.knownAllergens,
     );
   }

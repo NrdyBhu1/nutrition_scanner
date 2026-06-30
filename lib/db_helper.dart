@@ -72,13 +72,21 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE IF NOT EXISTS fired_alerts (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        date        TEXT    NOT NULL,
+        nutrient    TEXT    NOT NULL,
+        UNIQUE(date, nutrient)
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE IF NOT EXISTS user_profile (
         id              INTEGER PRIMARY KEY,
         name            TEXT,
         age             INTEGER,
         weight_kg       REAL,
         activity_level  TEXT,
-        dietary_mode    TEXT,
         alert_sodium    INTEGER,
         alert_sugar     INTEGER,
         alert_fat       INTEGER,
@@ -261,6 +269,37 @@ class DatabaseHelper {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
+  // ─── Fired alerts tracking ─────────────────────────────────────────────────
+
+  /// Check if an alert for this nutrient has already fired today.
+  Future<bool> hasAlertFiredToday(String nutrient, String date) async {
+    final db = await appDatabase;
+    final rows = await db.query(
+      'fired_alerts',
+      where: 'date = ? AND nutrient = ?',
+      whereArgs: [date, nutrient],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
+  /// Mark an alert as fired for today — prevents duplicate notifications.
+  Future<void> markAlertFired(String nutrient, String date) async {
+    final db = await appDatabase;
+    await db.insert('fired_alerts', {
+      'date': date,
+      'nutrient': nutrient,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
+  /// Clear fired alerts older than today — call periodically or on app start.
+  Future<void> clearOldFiredAlerts(String todayDate) async {
+    final db = await appDatabase;
+    await db.delete('fired_alerts', where: 'date != ?', whereArgs: [todayDate]);
+  }
+
+  // ─── Cleanup ───────────────────────────────────────────────────────────────
 
   // ─── Cleanup ───────────────────────────────────────────────────────────────
 

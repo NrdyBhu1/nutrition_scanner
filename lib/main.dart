@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:http/http.dart' as http;
 import 'constants.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +34,8 @@ void main() async {
   final dir = await getApplicationDocumentsDirectory();
   final dbFile = File(p.join(dir.path, 'nutrition.db'));
   final needsSync = !await dbFile.exists();
+
+  await NotificationService.instance.init();
 
   runApp(NutritionScannerApp(needsSync: needsSync));
 }

@@ -7,6 +7,8 @@ import '../utils/rdi_constants.dart';
 import '../models/daily_intake.dart';
 import '../models/product.dart';
 import '../services/openfoodfacts_service.dart';
+import '../services/notification_service.dart';
+import '../models/daily_intake.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isActive;
@@ -174,17 +176,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
 
         // Nutrient alert check
-        if (today.exceedsAlert(
-              sodiumRdi: rdi['Sodium'] ?? 2300,
-              sugarRdi: rdi['Sugars'] ?? 50,
-              fatRdi: rdi['Total Fat'] ?? 78,
-              alertSodiumPct: profile.alertSodiumPct,
-              alertSugarPct: profile.alertSugarPct,
-              alertFatPct: profile.alertFatPct,
-            ) &&
-            mounted) {
-          _showNutrientAlert();
-        }
+        // Per-nutrient alert checks — sends notification once per nutrient per day
+        await _checkAndNotify(
+          nutrient: 'Sodium',
+          consumed: today.totalSodium,
+          rdi: rdi['Sodium'] ?? 2300,
+          alertPct: profile.alertSodiumPct,
+        );
+        await _checkAndNotify(
+          nutrient: 'Sugars',
+          consumed: today.totalSugars,
+          rdi: rdi['Sugars'] ?? 50,
+          alertPct: profile.alertSugarPct,
+        );
+        await _checkAndNotify(
+          nutrient: 'Total Fat',
+          consumed: today.totalFat,
+          rdi: rdi['Total Fat'] ?? 78,
+          alertPct: profile.alertFatPct,
+        );
+        await _checkAndNotify(
+          nutrient: 'Potassium',
+          consumed: today.totalPotassium,
+          rdi: rdi['Potassium'] ?? 4700,
+          alertPct: profile.alertPotassiumPct,
+        );
         await Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => NutritionScreen(product: product!)),
@@ -245,28 +261,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showNutrientAlert() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              Icons.notifications_active_rounded,
-              color: Colors.orange,
-              size: 18,
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Daily nutrient limit approaching! Check your tracker.',
-                style: TextStyle(fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        duration: Duration(seconds: 4),
-      ),
+  Future<void> _checkAndNotify({
+    required String nutrient,
+    required double consumed,
+    required int rdi,
+    required int alertPct,
+  }) async {
+    if (rdi <= 0) return;
+    final pct = (consumed / rdi * 100);
+    if (pct < alertPct) return;
+
+    final todayKey = DailyIntake.todayKey;
+    final alreadyFired = await DatabaseHelper.instance.hasAlertFiredToday(
+      nutrient,
+      todayKey,
     );
+    if (alreadyFired) return;
+
+    await NotificationService.instance.showNutrientAlert(
+      title: '$nutrient limit reached',
+      body:
+          'You\'ve consumed ${consumed.toStringAsFixed(0)} of your '
+          '$rdi daily limit (${pct.toStringAsFixed(0)}%)',
+      id: nutrient.hashCode & 0x7FFFFFFF,
+    );
+    await DatabaseHelper.instance.markAlertFired(nutrient, todayKey);
   }
 
   void _showSnack(String msg) {
