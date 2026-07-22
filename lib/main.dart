@@ -35,8 +35,6 @@ void main() async {
   final dbFile = File(p.join(dir.path, 'nutrition.db'));
   final needsSync = !await dbFile.exists();
 
-  await NotificationService.instance.init();
-
   runApp(NutritionScannerApp(needsSync: needsSync));
 }
 
@@ -100,6 +98,14 @@ class _RootShellState extends State<RootShell> {
     const ProfileScreen(),
     const SyncScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.instance.init();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
